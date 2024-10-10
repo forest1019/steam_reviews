@@ -51,7 +51,8 @@ def get_data(reviews,language):
        poster = review.xpath("./div[@class='apphub_CardContentAuthorBlock tall']")
        poster_link = poster.xpath(".//a/@href").get() #用户链接
        nickname = poster.xpath("..//div[contains(@class, 'apphub_CardContentAuthorName')]/a/text()").get()  # 发布者昵称
-       product_count = re.search(r'(\d+) products in account', poster.xpath(".//div[contains(@class, 'apphub_CardContentMoreLink')]/text()").get() or '')   # 账户内产品数
+       product_count = re.search(r'(\d+) products in account', poster.xpath(".//div[contains(@class, 'apphub_CardContentMoreLink')]/text()").get() or '')  
+       product_count = product_count.group(1) if product_count else ''   # 账户内产品数
        reply_count = review.xpath(".//div[contains(@class, 'apphub_CardCommentCount')]/text()").get()  # 回复数量
 
        result=[attitude_value, play_record, publish_date, free_get, refunded, content, helpful_count, funny_count, award_count, poster_link, nickname, product_count, reply_count,language]

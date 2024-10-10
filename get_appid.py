@@ -15,7 +15,9 @@ driver.get(url)
 def get_appid(max_scroll):
     games = list()
     game_data = list()
-    for i in range(max_scroll):
+
+    '''
+    while True:
         time.sleep(1)
         r = driver.page_source
         s = Selector(r)
@@ -30,6 +32,16 @@ def get_appid(max_scroll):
 
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
         if new_count <= current_count:
+            break
+'''
+    for i in range(max_scroll):
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+        time.sleep(1)
+        r = driver.page_source
+        s = Selector(r)
+        if len(s.xpath('//a[contains(@class, "search_result_row")]')) > len(games):
+            games = s.xpath('//a[contains(@class, "search_result_row")]')
+        else:
             break
 
     for game in games:
@@ -46,8 +58,11 @@ def get_appid(max_scroll):
         price = game.xpath('//div[contains(@class, "discount_final_price")]/text()').get()
         
         result = [appid, game_title, platforms, release_date, price]
-        games.append(result)
-    return games
+        game_data.append(result)
+
+    driver.quit()
+    
+    return game_data
 
 def save_to_csv(data, filename):
     columns = ["Appid", "Game_title", "Platform", "Release_date", "Price"]

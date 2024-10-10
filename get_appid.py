@@ -37,14 +37,11 @@ def get_appid(max_scroll):
         appid = game.xpath('//a/@data-ds-appid').get()
         # 获取游戏名称
         game_title = game.xpath('//span[@class="title"]/text()').get()
-
         # 获取平台信息
         platforms = game.xpath('//span[contains(@class, "platform_img")]/@class').getall()
         platforms = [platform.split()[-1] for platform in platforms]  # 提取平台标识
-
         # 获取发布时间
         release_date = game.xpath('//div[contains(@class, "search_released")]/text()').get().strip()
-
         # 获取价格
         price = game.xpath('//div[contains(@class, "discount_final_price")]/text()').get()
         

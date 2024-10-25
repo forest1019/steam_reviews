@@ -66,7 +66,7 @@ def get_data(reviews,language):
 #获取不同语言的评论内容
 def get_full_data(app_id,filter):
     full_data = list()
-    url = f"https://steamcommunity.com/app/{app_id}/reviews/??browsefilter={filter}"  
+    url = f"https://steamcommunity.com/app/{app_id}/reviews/?browsefilter={filter}"  
     #appid游戏id filter{mostrecent,toprated, recentlyupdated, funny}
     driver.get(url)
     try:
@@ -94,7 +94,7 @@ def get_full_data(app_id,filter):
                 s = Selector(text=r) #第一次加载
                 current_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
                 current_count = len(current_reviews)
-                reviews.extend(current_reviews)  #增加到列表里
+                reviews = current_reviews  #增加到列表里
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")#滚动
                 time.sleep(2) 
                 r = driver.page_source
@@ -113,30 +113,69 @@ def get_full_data(app_id,filter):
         driver.quit()
     return full_data
 
-'''
-def standardize_date(date_str):
-    date_formats = [
-        "Posted: %d %B, %Y",
-        "Posted: %B %d, %Y",
-        "Posted: %d %B",
-        "Posted: %B %d"
-    ]
 
-    for date_format in date_formats:
-        current_year = datetime.now().year
-        try:
-            date = datetime.strptime(date_str, date_format)
-            if 'Y' not in date_format:
-                date = date.replace(year=current_year)
-            return date.strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    raise ValueError(f"{date_str} format not recognized")
-'''
+#获取单一预言的评论内容
+def get_language_data(app_id,filter,language):    
+    full_data = list()
+    url = f"https://steamcommunity.com/app/{app_id}/reviews/?filterLanguage={language}&browsefilter={filter}"  
+    #appid游戏id filter{mostrecent,toprated, recentlyupdated, funny}
+    driver.get(url)
+    reviews=list()
+    while True:
+        r = driver.page_source
+        s = Selector(text=r) #第一次加载
+        current_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
+        current_count = len(current_reviews)
+        reviews = current_reviews  #增加到列表里
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")#滚动
+        time.sleep(2) 
+        r = driver.page_source
+        s = Selector(text=r)#新一次加载
+        new_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
+        new_count = len(new_reviews)
+        if new_count <= current_count:
+            break
+        #调用函数获取数据
+    data = get_data(reviews,language)
+    full_data.extend(data)
+    driver.execute_script("window.scrollTo(0, 0)")
+    
+    driver.quit()
+    return full_data
+
+
 def save_to_csv(data, filename):
     columns = ["Attitude", "Play Record", "Publish Date", "Free_get", "Refunded", "Content", "Helpful","Funny", "Award Count", "Poster Link", "Nickname", "Product Count", "Reply Count", "Language"]
     df = pd.DataFrame(data, columns=columns)
     df.to_csv(filename, index=False, encoding='utf-8')  
 
-results=get_full_data('1135690','trendweek')
-save_to_csv(results, 'try2410.csv')
+
+def main():
+    full_data = list()    
+    game_info_df = pd.read_csv('game_info_add4.csv')
+    for row in game_info_df:
+        appid = row['Appid']  # 从游戏信息文件中获取 AppID
+        game_title = row['Game_title']
+        platform = row['Platform']
+        release_date = row['Release_date']
+        price = row['Price']
+        original_price = row['original_price']
+        print(appid)
+
+        reviews = get_language_data(appid,'mostrecent','english')   
+         
+        
+        for review in reviews:
+            combined_data = [appid,game_title,platform,release_date,price,original_price]+review
+            full_data.append(combined_data)
+    
+
+    save_to_csv(full_data, 'review_info_add4.csv')
+
+
+
+    if __name__ == "__main__":
+        main()
+        driver.quit() 
+
+

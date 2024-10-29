@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 options = ChromeOptions()
 options.add_experimental_option('prefs', {'intl.accept_languages': 'en_US'})
-driver = Chrome(options=options)
+
 
 
 
@@ -68,6 +68,7 @@ def get_full_data(app_id,filter):
     full_data = list()
     url = f"https://steamcommunity.com/app/{app_id}/reviews/?browsefilter={filter}"  
     #appid游戏id filter{mostrecent,toprated, recentlyupdated, funny}
+    driver = Chrome(options=options)
     driver.get(url)
     try:
     #点击下拉框
@@ -114,68 +115,65 @@ def get_full_data(app_id,filter):
     return full_data
 
 
-#获取单一预言的评论内容
-def get_language_data(app_id,filter,language):    
-    full_data = list()
-    url = f"https://steamcommunity.com/app/{app_id}/reviews/?filterLanguage={language}&browsefilter={filter}"  
-    #appid游戏id filter{mostrecent,toprated, recentlyupdated, funny}
-    driver.get(url)
-    reviews=list()
-    while True:
-        r = driver.page_source
-        s = Selector(text=r) #第一次加载
-        current_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
-        current_count = len(current_reviews)
-        reviews = current_reviews  #增加到列表里
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")#滚动
-        time.sleep(2) 
-        r = driver.page_source
-        s = Selector(text=r)#新一次加载
-        new_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
-        new_count = len(new_reviews)
-        if new_count <= current_count:
-            break
-        #调用函数获取数据
-    data = get_data(reviews,language)
-    full_data.extend(data)
-    driver.execute_script("window.scrollTo(0, 0)")
-    
-    driver.quit()
-    return full_data
-
+#获取单一语言的评论内容
+def get_language_data(app_id, filter, language):
+    full_data = []
+    wrong = []
+    url = f"https://steamcommunity.com/app/{app_id}/reviews/?filterLanguage={language}&snr=1_5_100010_&browsefilter={filter}&p=1"
+    try:
+        driver = Chrome(options=options)
+       # print(url)
+        driver.get(url)
+        reviews = []
+        while True:
+            r = driver.page_source
+            s = Selector(text=r)
+            current_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
+            reviews = current_reviews
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+            time.sleep(2)
+            r = driver.page_source
+            s = Selector(text=r)
+            new_reviews = s.xpath("//div[@class='apphub_Card modalContentLink interactable']")
+            if len(new_reviews) <= len(current_reviews):
+                break
+        data = get_data(reviews, language)
+        full_data.extend(data)
+        driver.execute_script("window.scrollTo(0, 0)")
+    except Exception as e:
+        print(f"Error encountered for App ID {app_id}: {e}")
+        wrong.append(app_id)
+    finally:
+        driver.quit()
+    return full_data, wrong
 
 def save_to_csv(data, filename):
-    columns = ["Attitude", "Play Record", "Publish Date", "Free_get", "Refunded", "Content", "Helpful","Funny", "Award Count", "Poster Link", "Nickname", "Product Count", "Reply Count", "Language"]
+    columns = ["Attitude", "Play Record", "Publish Date", "Free_get", "Refunded", "Content", "Helpful", "Funny", "Award Count", "Poster Link", "Nickname", "Product Count", "Reply Count", "Language"]
     df = pd.DataFrame(data, columns=columns)
-    df.to_csv(filename, index=False, encoding='utf-8')  
-
+    df.to_csv(filename, index=False, encoding='utf-8')
 
 def main():
-    full_data = list()    
+    full_data = []
+    wrong = []
     game_info_df = pd.read_csv('game_info_add4.csv')
-    for row in game_info_df:
-        appid = row['Appid']  # 从游戏信息文件中获取 AppID
-        game_title = row['Game_title']
-        platform = row['Platform']
-        release_date = row['Release_date']
-        price = row['Price']
-        original_price = row['original_price']
-        print(appid)
-
-        reviews = get_language_data(appid,'mostrecent','english')   
-         
-        
-        for review in reviews:
-            combined_data = [appid,game_title,platform,release_date,price,original_price]+review
-            full_data.append(combined_data)
-    
-
+    rows = game_info_df.values.tolist()
+    for row in rows:
+        try:
+            reviews, current_wrong = get_language_data(str(row[0]), 'mostrecent', 'english')
+            wrong.extend(current_wrong)
+            if not reviews:
+                continue
+            for review in reviews:
+                combined_data = [value if value is not None else 'N/A' for value in row] + [value if value is not None else 'N/A' for value in review]
+                full_data.append(combined_data)
+                #print(combined_data)
+                time.sleep(3)
+        except Exception as e:
+            print(f"Error encountered in main loop for App ID {row[0]}: {e}")
+            wrong.append(row[0])
+            continue
     save_to_csv(full_data, 'review_info_add4.csv')
+    print("App IDs with issues:", wrong)
 
-
-
-    if __name__ == "__main__":
-        main()
-        driver.quit() 
-
-
+if __name__ == "__main__":
+    main()
